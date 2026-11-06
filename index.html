@@ -1,7 +1,18 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#25282c"><title>B2 CAMERA ROLL</title>
 <link rel="stylesheet" href="style.css"></head><body><main>
+<div class="topbar"><span></span><button class="menu-toggle" id="menu-toggle" type="button" aria-expanded="false" aria-controls="site-menu">☰ More</button></div>
 <h1>B2 CAMERA ROLL</h1><p class="tag">The class memory dump. Send us your pics &amp; videos. 📸</p>
+<section class="menu-panel" id="site-menu" hidden aria-label="More options">
+ <div class="menu-tabs" role="tablist" aria-label="More options">
+  <button type="button" class="menu-tab active" data-panel="admin-panel" role="tab" aria-selected="true">Admin login</button>
+  <button type="button" class="menu-tab" data-panel="feedback-panel" role="tab" aria-selected="false">Feedback</button>
+  <button type="button" class="menu-tab" data-panel="removal-panel" role="tab" aria-selected="false">Content removal</button>
+ </div>
+ <section id="admin-panel" class="menu-content"><iframe src="admin.html" title="Admin login" loading="lazy"></iframe></section>
+ <section id="feedback-panel" class="menu-content" hidden><p class="note">Send feedback to the site owner. This opens your email app.</p><form class="mail-form" data-subject="B2 Camera Roll feedback"><label for="feedback-message">Your feedback</label><textarea id="feedback-message" required maxlength="2000" rows="4" placeholder="Tell us what you think…"></textarea><button class="btn" type="submit">Send feedback</button></form></section>
+ <section id="removal-panel" class="menu-content" hidden><p class="note">Request removal of a photo or video. Include enough detail to identify it, such as its caption or upload time. This opens your email app.</p><form class="mail-form" data-subject="B2 Camera Roll content removal request"><label for="removal-message">Which content should be removed?</label><textarea id="removal-message" required maxlength="2000" rows="4" placeholder="Describe the photo or video…"></textarea><button class="btn" type="submit">Request removal</button></form></section>
+</section>
 <div class="card">
 <label for="files" class="btn" style="margin-top:0">Add to the camera roll</label>
 <input id="files" type="file" accept="image/*,video/*" multiple hidden>
@@ -11,15 +22,25 @@
 <div class="bar" id="bar"><i id="fill"></i></div><div class="msg" id="msg"></div>
 </div>
 <p class="note">🔒 Uploads are private. Please be respectful with what you send: only share photos and videos that are okay for the class to see. Don’t send private, hurtful, or embarrassing content without permission.</p>
-<footer>Instagram: <a href="https://instagram.com/theydontfwjarmin">@theydontfwjarmin</a><br>
-<a href="https://instagram.com/classofb2shitpostinghere">@classofb2shitpostinghere</a><br>
+<footer>Instagram: <a href="https://instagram.com/theydontfwjarmin">@theydontfwjarmin</a>, <a href="https://instagram.com/classofb2shitpostinghere">@classofb2shitpostinghere</a><br>
 Contact: <a href="mailto:sendmepicsofb2@gmail.com">sendmepicsofb2@gmail.com</a></footer>
 </main>
+<audio id="buffer-audio" preload="auto" src="upload-buffer.m4a"></audio>
+<div class="play-overlay" id="thanks-overlay" hidden><div class="play-card"><p class="note">Thanks for sharing! Returning to the camera roll after the clip.</p><video id="thanks-video" playsinline preload="auto"></video><button id="play-thanks" class="btn" type="button" hidden>Play thank-you clip</button><button id="skip-thanks" class="text-button" type="button">Back to camera roll</button></div></div>
 <script src="config.js"></script>
 <script>
 const {supabaseUrl:SUPABASE_URL,supabaseAnonKey:ANON_KEY}=window.CLASSOFB2_CONFIG;
 const $=id=>document.getElementById(id),configured=!!(SUPABASE_URL&&!SUPABASE_URL.includes("YOUR-PROJECT")&&ANON_KEY&&!ANON_KEY.startsWith("YOUR_"));
 let files=[];const MAX_FILE=50*1024*1024,MAX_FILES=10;
+const isMobile=()=>typeof navigator.userAgentData?.mobile==="boolean"?navigator.userAgentData.mobile:/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+$("thanks-video").src=isMobile()?"ty-clip-mobile.mp4":"ty-clip-desktop.mp4";
+$("menu-toggle").onclick=()=>{const open=$("site-menu").hidden;$("site-menu").hidden=!open;$("menu-toggle").setAttribute("aria-expanded",String(open));if(open)$("site-menu").scrollIntoView({behavior:"smooth",block:"nearest"})};
+document.querySelectorAll(".menu-tab").forEach(tab=>tab.onclick=()=>{document.querySelectorAll(".menu-tab").forEach(t=>{const active=t===tab;t.classList.toggle("active",active);t.setAttribute("aria-selected",String(active))});document.querySelectorAll(".menu-content").forEach(p=>p.hidden=p.id!==tab.dataset.panel)});
+document.querySelectorAll(".mail-form").forEach(form=>form.onsubmit=e=>{e.preventDefault();const message=form.querySelector("textarea").value;const subject=form.dataset.subject;location.href=`mailto:sendmepicsofb2@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`});
+const play=media=>{media.pause();media.currentTime=0;const result=media.play();if(result)result.catch(()=>{})};
+const returnHome=()=>location.replace(location.pathname);
+$("skip-thanks").onclick=returnHome;$("play-thanks").onclick=()=>{$("play-thanks").hidden=true;play($("thanks-video"))};
+$("thanks-video").onended=returnHome;$("thanks-video").onerror=()=>{$("play-thanks").hidden=false};
 if(!configured){$("send").disabled=true;$("msg").textContent="Uploads are not connected yet. The site owner needs to finish the Supabase setup."}
 $("files").onchange=e=>{files=[...e.target.files];const issue=files.length>MAX_FILES?`Choose up to ${MAX_FILES} files at a time.`:files.find(f=>!f.type.startsWith("image/")&&!f.type.startsWith("video/"))?"Only image and video files are accepted.":files.find(f=>f.size>MAX_FILE)?"Each file must be 50 MB or smaller.":"";$("list").innerHTML=files.map(f=>`<li>${f.name.replace(/[<>&]/g,"")} (${(f.size/1048576).toFixed(1)} MB)</li>`).join("");$("send").disabled=!configured||!files.length||!!issue;$("msg").className=issue?"msg err":"msg";$("msg").textContent=issue||(configured?"":"Uploads are not connected yet.")};
 function up(file,onp){return new Promise((res,rej)=>{
@@ -35,11 +56,12 @@ async function row(r){const x=await fetch(`${SUPABASE_URL}/rest/v1/submissions`,
 $("send").onclick=async()=>{
  const total=files.reduce((a,f)=>a+f.size,0);let done=0;
  $("send").disabled=true;$("bar").style.display="block";$("msg").className="msg";
+ $("msg").textContent="Buffering your upload…";play($("buffer-audio"));await new Promise(resolve=>setTimeout(resolve,2500));
  try{for(let i=0;i<files.length;i++){const f=files[i];$("msg").textContent=`Uploading ${i+1} of ${files.length}…`;
   const path=await up(f,l=>$("fill").style.width=((done+l)/total*100)+"%");done+=f.size;
-  await row({caption:$("caption").value,path,original_name:f.name,size:f.size,mime:f.type})}
+  await row({caption:$("caption").value,path,original_name:f.name,size:f.size,mime:f.type,name:isMobile()?"Mobile":"Desktop"})}
   $("fill").style.width="100%";$("msg").className="msg ok";$("msg").textContent="🎉 Got it! Thanks for sharing your memories.";
-  files=[];$("files").value="";$("list").innerHTML=""}
+  files=[];$("files").value="";$("list").innerHTML="";$("thanks-overlay").hidden=false;try{await $("thanks-video").play()}catch{$("play-thanks").hidden=false}}
  catch(e){$("msg").className="msg err";$("msg").textContent=e.message+". Please try again."; $("send").disabled=false}
 };
 </script></body></html>

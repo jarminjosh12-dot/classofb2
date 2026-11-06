@@ -2,7 +2,7 @@
 <meta name="robots" content="noindex"><title>CLASSOFB2 Admin</title><link rel="stylesheet" href="style.css"></head><body><main>
 <h1 style="font-size:2.2rem">Admin</h1>
 <div class="card" id="login"><label>Email</label><input id="em" type="email"><label>Password</label><input id="pw" type="password">
-<button class="btn" id="go">Log in</button><div class="msg err" id="err"></div></div>
+<button class="btn" id="go">Log in</button><div class="msg err" id="err"></div><video class="failure-video" id="admin-fail-video" playsinline preload="auto" hidden></video><button class="btn" id="play-fail-video" type="button" hidden>Play clip</button></div>
 <div id="dash" hidden><button class="btn sm" id="out">Log out</button><div class="card" id="items">Loading…</div></div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -12,8 +12,14 @@ const {supabaseUrl,supabaseAnonKey}=window.CLASSOFB2_CONFIG;
 const configured=supabaseUrl&&!supabaseUrl.includes("YOUR-PROJECT")&&supabaseAnonKey&&!supabaseAnonKey.startsWith("YOUR_");
 const sb=configured?supabase.createClient(supabaseUrl,supabaseAnonKey):null;
 const $=id=>document.getElementById(id),esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const isMobile=()=>typeof navigator.userAgentData?.mobile==="boolean"?navigator.userAgentData.mobile:/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+const failVideo=$("admin-fail-video");failVideo.src=isMobile()?"admin-fail-mobile.mp4":"admin-fail-desktop.mp4";
+function playFailVideo(){failVideo.pause();failVideo.currentTime=0;const p=failVideo.play();if(p)p.catch(()=>{$("play-fail-video").hidden=false})}
+$("play-fail-video").onclick=()=>{$("play-fail-video").hidden=true;playFailVideo()};
+failVideo.onerror=()=>{$("play-fail-video").hidden=false};
+failVideo.onended=()=>{failVideo.hidden=true};
 if(!configured){$("err").textContent="Admin login is not connected yet. Complete the Supabase setup first.";$("go").disabled=true}
-$("go").onclick=async()=>{if(!sb)return;const{error}=await sb.auth.signInWithPassword({email:$("em").value,password:$("pw").value});error?$("err").textContent="Login failed. Check your email and password.":load()};
+$("go").onclick=async()=>{if(!sb)return;const{error}=await sb.auth.signInWithPassword({email:$("em").value,password:$("pw").value});if(error){$("err").textContent="Login failed. Check your email and password.";failVideo.hidden=false;playFailVideo()}else load()};
 $("out").onclick=async()=>{await sb.auth.signOut();location.reload()};
 async function load(){const{data:{session}}=await sb.auth.getSession();if(!session)return;
  $("login").hidden=true;$("dash").hidden=false;
@@ -23,7 +29,7 @@ async function load(){const{data:{session}}=await sb.auth.getSession();if(!sessi
  const dl=await sb.storage.from("uploads").createSignedUrls(data.map(d=>d.path),3600,{download:true});
  $("items").innerHTML=`<p class="note">${data.length} files</p>`+data.map((d,i)=>{const u=urls[i].signedUrl,v=(d.mime||"").startsWith("video");
   return `<div class="item">${v?`<video src="${u}" preload="metadata" controls></video>`:`<img src="${u}" loading="lazy">`}
-  <div>${esc(d.caption)}<br><span class="note">${new Date(d.created_at).toLocaleString()} · ${(d.size/1048576).toFixed(1)} MB</span><br>
+  <div>${esc(d.caption)}<br><span class="note">${new Date(d.created_at).toLocaleString()} · ${(d.size/1048576).toFixed(1)} MB · Device: ${esc(d.name||"Unknown")}</span><br>
   <a class="btn sm" href="${dl.data[i].signedUrl}">Download</a><button class="btn sm" style="background:#3a1620" data-p="${d.path}" data-i="${d.id}">Delete</button></div></div>`}).join("");
  document.querySelectorAll("[data-p]").forEach(b=>b.onclick=async()=>{if(!confirm("Delete permanently?"))return;
   await sb.storage.from("uploads").remove([b.dataset.p]);await sb.from("submissions").delete().eq("id",b.dataset.i);load()})}
