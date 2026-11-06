@@ -1,0 +1,46 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>CLASSOFB2</title>
+<link rel="stylesheet" href="style.css"></head><body><main>
+<h1>CLASSOFB2</h1><p class="tag">The class memory dump. Send us the pics &amp; videos. 📸</p>
+<div class="card">
+<label for="files" class="btn" style="margin-top:0">Upload your memories</label>
+<input id="files" type="file" accept="image/*,video/*" multiple hidden>
+<ul id="list"></ul>
+<label>Your name (optional)</label><input id="name" maxlength="80">
+<label>Event (optional)</label><input id="event" maxlength="120" placeholder="Farewell, field trip, canteen…">
+<label>Caption (optional)</label><textarea id="caption" rows="2" maxlength="300"></textarea>
+<button class="btn" id="send" disabled>Send</button>
+<div class="bar" id="bar"><i id="fill"></i></div><div class="msg" id="msg"></div>
+</div>
+<p class="note">🔒 Uploads are private. Nobody can browse them, only the site owner sees them. Please submit only media you have permission to share and are comfortable having considered for the class Instagram.</p>
+<footer>Instagram: <a href="https://instagram.com/theydontfwjarmin">@theydontfwjarmin</a><br>
+Contact: <a href="mailto:sendmepicsofb2@gmail.com">sendmepicsofb2@gmail.com</a></footer>
+</main>
+<script src="config.js"></script>
+<script>
+const {supabaseUrl:SUPABASE_URL,supabaseAnonKey:ANON_KEY}=window.CLASSOFB2_CONFIG;
+const $=id=>document.getElementById(id),configured=!!(SUPABASE_URL&&!SUPABASE_URL.includes("YOUR-PROJECT")&&ANON_KEY&&!ANON_KEY.startsWith("YOUR_"));
+let files=[];const MAX_FILE=50*1024*1024,MAX_FILES=10;
+if(!configured){$("send").disabled=true;$("msg").textContent="Uploads are not connected yet. The site owner needs to finish the Supabase setup."}
+$("files").onchange=e=>{files=[...e.target.files];const issue=files.length>MAX_FILES?`Choose up to ${MAX_FILES} files at a time.`:files.find(f=>!f.type.startsWith("image/")&&!f.type.startsWith("video/"))?"Only image and video files are accepted.":files.find(f=>f.size>MAX_FILE)?"Each file must be 50 MB or smaller.":"";$("list").innerHTML=files.map(f=>`<li>${f.name.replace(/[<>&]/g,"")} (${(f.size/1048576).toFixed(1)} MB)</li>`).join("");$("send").disabled=!configured||!files.length||!!issue;$("msg").className=issue?"msg err":"msg";$("msg").textContent=issue||(configured?"":"Uploads are not connected yet.")};
+function up(file,onp){return new Promise((res,rej)=>{
+ const ext=(file.name.split(".").pop()||"bin").replace(/[^a-z0-9]/gi,"").slice(0,8);
+ const path=crypto.randomUUID()+"."+ext, x=new XMLHttpRequest();
+ x.open("POST",`${SUPABASE_URL}/storage/v1/object/uploads/${path}`);
+ x.setRequestHeader("apikey",ANON_KEY);x.setRequestHeader("Authorization","Bearer "+ANON_KEY);
+ x.setRequestHeader("Content-Type",file.type||"application/octet-stream");
+ x.upload.onprogress=e=>e.lengthComputable&&onp(e.loaded);
+ x.onload=()=>x.status<300?res(path):rej(new Error(x.status==413?`${file.name} is too big (max 50 MB)`:`Upload failed (${x.status})`));
+ x.onerror=()=>rej(new Error("Network error"));x.send(file)})}
+async function row(r){const x=await fetch(`${SUPABASE_URL}/rest/v1/submissions`,{method:"POST",headers:{apikey:ANON_KEY,Authorization:"Bearer "+ANON_KEY,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify(r)});if(!x.ok)throw new Error("Could not save details")}
+$("send").onclick=async()=>{
+ const total=files.reduce((a,f)=>a+f.size,0);let done=0;
+ $("send").disabled=true;$("bar").style.display="block";$("msg").className="msg";
+ try{for(let i=0;i<files.length;i++){const f=files[i];$("msg").textContent=`Uploading ${i+1} of ${files.length}…`;
+  const path=await up(f,l=>$("fill").style.width=((done+l)/total*100)+"%");done+=f.size;
+  await row({name:$("name").value,caption:$("caption").value,event:$("event").value,path,original_name:f.name,size:f.size,mime:f.type})}
+  $("fill").style.width="100%";$("msg").className="msg ok";$("msg").textContent="🎉 Got it! Thanks for sharing your memories.";
+  files=[];$("files").value="";$("list").innerHTML=""}
+ catch(e){$("msg").className="msg err";$("msg").textContent=e.message+". Please try again."; $("send").disabled=false}
+};
+</script></body></html>
