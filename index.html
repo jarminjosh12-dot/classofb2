@@ -1,18 +1,16 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>CLASSOFB2</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#25282c"><title>B2 Camera Roll</title>
 <link rel="stylesheet" href="style.css"></head><body><main>
-<h1>CLASSOFB2</h1><p class="tag">The class memory dump. Send us the pics &amp; videos. 📸</p>
+<h1>B2 Camera Roll</h1><p class="tag">The class memory dump. Send us your pics &amp; videos. 📸</p>
 <div class="card">
-<label for="files" class="btn" style="margin-top:0">Upload your memories</label>
+<label for="files" class="btn" style="margin-top:0">Add to the camera roll</label>
 <input id="files" type="file" accept="image/*,video/*" multiple hidden>
 <ul id="list"></ul>
-<label>Your name (optional)</label><input id="name" maxlength="80">
-<label>Event (optional)</label><input id="event" maxlength="120" placeholder="Farewell, field trip, canteen…">
-<label>Caption (optional)</label><textarea id="caption" rows="2" maxlength="300"></textarea>
-<button class="btn" id="send" disabled>Send</button>
+<label for="caption">Caption</label><textarea id="caption" rows="2" maxlength="300" placeholder="Add a little context…"></textarea>
+<button class="btn" id="send" disabled>Send it in</button>
 <div class="bar" id="bar"><i id="fill"></i></div><div class="msg" id="msg"></div>
 </div>
-<p class="note">🔒 Uploads are private. Nobody can browse them, only the site owner sees them. Please submit only media you have permission to share and are comfortable having considered for the class Instagram.</p>
+<p class="note">🔒 Uploads are private. Please be respectful with what you send: only share photos and videos that are okay for the class to see. Don’t send private, hurtful, or embarrassing content without permission.</p>
 <footer>Instagram: <a href="https://instagram.com/theydontfwjarmin">@theydontfwjarmin</a><br>
 Contact: <a href="mailto:sendmepicsofb2@gmail.com">sendmepicsofb2@gmail.com</a></footer>
 </main>
@@ -38,7 +36,7 @@ $("send").onclick=async()=>{
  $("send").disabled=true;$("bar").style.display="block";$("msg").className="msg";
  try{for(let i=0;i<files.length;i++){const f=files[i];$("msg").textContent=`Uploading ${i+1} of ${files.length}…`;
   const path=await up(f,l=>$("fill").style.width=((done+l)/total*100)+"%");done+=f.size;
-  await row({name:$("name").value,caption:$("caption").value,event:$("event").value,path,original_name:f.name,size:f.size,mime:f.type})}
+  await row({caption:$("caption").value,path,original_name:f.name,size:f.size,mime:f.type})}
   $("fill").style.width="100%";$("msg").className="msg ok";$("msg").textContent="🎉 Got it! Thanks for sharing your memories.";
   files=[];$("files").value="";$("list").innerHTML=""}
  catch(e){$("msg").className="msg err";$("msg").textContent=e.message+". Please try again."; $("send").disabled=false}
